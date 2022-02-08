@@ -1,14 +1,18 @@
 from turtle import st
+from random import randint
+from math import ceil
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors
 from numpy.core.records import array
 
 LEVEL_SIZE = 28
-GENERATED_LEVELS = 5
+GENERATED_LEVELS = 2
 START_LEVEL = 1
+DRAWIT= False
 
-MAX_PIG_COUNT = 4
+PIG_RANGE = [1,6]
+NUMBER_OF_PIGS = 0
 
 # blocks number and size
 # Dictionary represents [RealWorld Size (width, height), actual size, block name key, material]
@@ -35,7 +39,7 @@ blocks_strings = {"2ice": "11", "2stone": "22", "2wood": "33",
                  "8ice": "11111111", "8stone": "22222222", "8wood": "33333333",
                  "9ice": "111111111", "9stone": "222222222", "9wood": "333333333"}
 
-pig_size = [0.5,0.45] 
+pig_size = [0.47,0.45] 
 
 tiny_block_size = [0.22,0.22]
 tiny_block_name = "SquareTiny"
@@ -48,6 +52,8 @@ block_names = {'1':"SquareTiny", '2':"RectTiny", '3':"RectTiny", '4':"RectSmall"
 
 # materials number and name
 materials = {'1':"ice", '2':"stone", '3':"wood"}
+
+bird_types_index = {'0':"BirdYellow", '1':"BirdBlue", '2':"BirdRed", '3':"BirdBlack", '4':"BirdWhite"}
 
 absolute_ground_y = -3.5
 absolute_ground_x = 2.0 
@@ -344,60 +350,106 @@ def findPigLocations(level):
         for j in range(LEVEL_SIZE):
             if level[i][j] == 4:
                 pig_locations.append([i, j])
+                
     
     if len(pig_locations) != 0:
         return pig_locations
     else:
         #Control floor gaps between structures firstly
+        NUMBER_OF_PIGS = randint(int(PIG_RANGE[0]),int(PIG_RANGE[1]))
         emptyIndex = 0
-        while emptyIndex < LEVEL_SIZE-1:
-            if level[LEVEL_SIZE-1][emptyIndex] == 0 and level[LEVEL_SIZE-1][emptyIndex+1]:
-                if len(pig_locations) < MAX_PIG_COUNT:
-                    pig_locations.append([LEVEL_SIZE-1, emptyIndex])
-                    level[LEVEL_SIZE-1][emptyIndex] = 4
-                emptyIndex += 2 
-            else: 
-                emptyIndex += 1
+        while emptyIndex < LEVEL_SIZE-2:
+            if level[LEVEL_SIZE-1][emptyIndex] == 0 and level[LEVEL_SIZE-2][emptyIndex] == 0 and level[LEVEL_SIZE-3][emptyIndex] == 0 and level[LEVEL_SIZE-1][emptyIndex+1] and level[LEVEL_SIZE-2][emptyIndex+1] == 0 and level[LEVEL_SIZE-3][emptyIndex+1] == 0 and level[LEVEL_SIZE-1][emptyIndex+2] and level[LEVEL_SIZE-2][emptyIndex+2] == 0 and level[LEVEL_SIZE-3][emptyIndex+2] == 0:
+                if len(pig_locations) <= NUMBER_OF_PIGS:
+                    pig_locations.append([LEVEL_SIZE-2, emptyIndex+1])
+                    level[LEVEL_SIZE-2][emptyIndex+1] = 4    
+            emptyIndex += 1
 
         #Control pig sized gaps in structures or gaps on top of structure      
-        i = LEVEL_SIZE-1
-        while i > 2:
+        i = 3
+        while i < LEVEL_SIZE - 1:
             j = 0
-            while j < LEVEL_SIZE-1:
-                if level[i][j] != 0 and level[i][j+1] != 0:
-                    if level[i-1][j] == 0 and level[i-1][j+1] == 0 and level[i-2][j] == 0 and level[i-2][j+1] == 0 and level[i-3][j] == 0 and level[i-3][j+1] == 0:
-                        if len(pig_locations) < MAX_PIG_COUNT:
-                            pig_locations.append([i-11, j])
-                            level[i-1][j] = 4
-                        j += 2
-                    else:
-                        j += 1
-                else:
-                    j += 1
-            i -= 1
+            while j < LEVEL_SIZE-2:
+                if level[i][j+1] != 0:  
+                    if level[i-1][j] == 0 and level[i-1][j+1] == 0 and level[i-1][j+2] == 0 and level[i-2][j] == 0 and level[i-2][j+1] == 0 and level[i-2][j+2] == 0 and level[i-3][j] == 0 and level[i-3][j+1] == 0 and level[i-3][j+2] == 0:
+                        if len(pig_locations) <= NUMBER_OF_PIGS:
+                            pig_locations.append([i-2, j+1])
+                            level[i-2][j+1] = 4
+                j += 1
+            i += 1
         return pig_locations
+
+def chooseBirds(level, bird_count):
+
+    iceCount = 0 #1
+    stoneCount = 0 #2
+    woodCount = 0 #3
+    totalMaterial = 0
+    
+    for i in range(LEVEL_SIZE):
+        for j in range(LEVEL_SIZE):
+            cell = level[i][j]
+            if cell != 0 and cell != 4:
+                structure = blocks[str(cell)]
+                material_key = structure[4]
+                if material_key == 1:
+                    iceCount += 1
+                elif material_key == 2:
+                    stoneCount += 1
+                elif material_key == 3:
+                    woodCount += 1
+
+    totalMaterial = iceCount + stoneCount + woodCount
+
+    iceRatio = iceCount / totalMaterial
+    stoneRatio = stoneCount / totalMaterial
+    woodRatio = woodCount / totalMaterial
+
+    bird_list = []
+
+    #bird_types_index = {'0':"BirdYellow", '1':"BirdBlue", '2':"BirdRed", '3':"BirdBlack", '4':"BirdWhite"}
+
+    while len(bird_list) < bird_count:
+        if iceRatio >= woodRatio and iceRatio >= stoneRatio:
+            bird_list.append(1)
+        elif stoneRatio >= 0.75:
+            bird_list.append(3)
+        elif woodRatio >= stoneRatio and woodRatio >= iceRatio:
+            bird_list.append(0)
+        else:
+            bird_list.append(2)
+
+        if len(bird_list) < bird_count - 1:
+             bird_list.append(randint(0,2))
+    
+    return bird_list
 
 def writeLevelXML(levels):
     XML_LEVEL_COUNTER = 1
     for index in range(len(levels)):
         f = open("level-{:02d}.xml".format(XML_LEVEL_COUNTER), "w")
 
-        f.write('<?xml version="1.0" encoding="utf-16"?>\n')
-        f.write('<Level width ="2">\n')
-        f.write('<Camera x="0" y="2" minWidth="20" maxWidth="30">\n')
-        f.write('<Birds>\n')
-        f.write('<Bird type="BirdYellow"/>\n')
-        f.write('<Bird type="BirdBlue"/>\n') 
-        f.write('<Bird type="BirdRed"/>\n')   
-        f.write('</Birds>\n')
-        f.write('<Slingshot x="-8" y="-2.5">\n')
-        f.write('<GameObjects>\n')
-        
         level = levels[index]
         levelIslandCleaner(level)
         findStructures(level)
         pig_locations = findPigLocations(level)
 
+        bird_count =  ceil(len(pig_locations)/2)
+
+        f.write('<?xml version="1.0" encoding="utf-16"?>\n')
+        f.write('<Level width ="2">\n')
+        f.write('<Camera x="0" y="2" minWidth="20" maxWidth="30">\n')
+        f.write('<Birds>\n')
+
+        bird_list = chooseBirds(level, bird_count)
+        for bird in bird_list:
+            f.write('<Bird type="%s"/>\n' % bird_types_index[str(bird)])
+
+        f.write('</Birds>\n')
+        f.write('<Slingshot x="-8" y="-2.5">\n')
+        f.write('<GameObjects>\n')
+        
+        
         for i in range(LEVEL_SIZE-1, -1, -1):
             j = 0
             while j < LEVEL_SIZE:
@@ -446,8 +498,8 @@ def writeLevelXML(levels):
         for i in range(LEVEL_SIZE-1, -1, -1):
             for j in range(LEVEL_SIZE):
                 if level[i][j] == 4:
-                    pig_x_location = absolute_ground_x + tiny_block_size[0] + j * tiny_block_size[0]
-                    pig_y_locations = absolute_ground_y + tiny_block_size[0] + (LEVEL_SIZE-1-i) * tiny_block_size[1] 
+                    pig_x_location = absolute_ground_x + tiny_block_size[0]/2 + j * tiny_block_size[0]
+                    pig_y_locations = absolute_ground_y + tiny_block_size[1]/2 + (LEVEL_SIZE-1-i) * tiny_block_size[1] 
                     f.write('<Pig type="BasicSmall" material="" x="%s" y="%s" rotation="0" />\n' % (str(pig_x_location),str(pig_y_locations)))
 
         f.write('</GameObjects>\n')
@@ -461,10 +513,10 @@ def writeLevelXML(levels):
 readData()
 levels = np.array(data)
 
-
-#for index in range(len(levels)):
-#    level = levels[index]
-#    draw(level) 
+if DRAWIT == True:
+    for index in range(len(levels)):
+        level = levels[index]
+        draw(level) 
 
 writeLevelXML(levels)
 
